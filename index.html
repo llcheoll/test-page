@@ -599,26 +599,62 @@
                     color: 'text-amber-400',
                     title: 'Documentación y Trámites',
                     content: (
-                        <div className="space-y-4 text-sm text-slate-300">
+                        <div className="space-y-6 text-sm text-slate-300">
+                            {/* TIVe */}
                             <div className="flex items-start">
-                                <i className="fa-solid fa-qrcode text-xl text-amber-500 mr-3 mt-1"></i>
+                                <div className="bg-slate-800 p-2 rounded-lg mr-3 mt-1 shadow-inner"><i className="fa-solid fa-qrcode text-xl text-amber-500"></i></div>
                                 <div>
                                     <h4 className="text-white font-medium">Tarjeta de Identificación Vehicular (TIVe)</h4>
-                                    <p>Imprímela y guárdala en la guantera. La PNP escanea el código QR en operativos. No requieres Revisión Técnica hasta 2031.</p>
+                                    <p className="mt-1 text-xs">Documento digital con código QR. Debes guardarlo en tu celular (PDF) e imprimir una copia para la guantera. La PNP lo escaneará en operativos. Estás exonerado de Revisión Técnica hasta el año 2031.</p>
                                 </div>
                             </div>
+
+                            {/* SEGURO EXPANDIDO */}
                             <div className="flex items-start">
-                                <i className="fa-solid fa-shield-halved text-xl text-amber-500 mr-3 mt-1"></i>
-                                <div>
-                                    <h4 className="text-white font-medium">Seguro Quálitas (Alerta: Imprudencia)</h4>
-                                    <p>Póliza N° 0070307912. <strong>Cuidado:</strong> Si chocas por pasarte una luz roja o exceso de velocidad, el deducible sube al 25% (Min $500). Tienes asistencia para Leia (Mascota) si va en cabina.</p>
+                                <div className="bg-rose-900/30 p-2 rounded-lg border border-rose-800 mr-3 mt-1 shadow-inner"><i className="fa-solid fa-shield-halved text-xl text-rose-400"></i></div>
+                                <div className="flex-1">
+                                    <h4 className="text-white font-bold text-base flex justify-between items-center">
+                                        Seguro Vehicular Quálitas
+                                        <span className="text-xs bg-rose-500/20 text-rose-300 px-2 py-1 rounded-full border border-rose-500/30">Vigente</span>
+                                    </h4>
+                                    <p className="text-xs text-rose-300 mb-3 mt-1 font-mono bg-rose-950/50 inline-block px-2 py-1 rounded">Póliza N° 0070307912 | Central: (01) 622-2233</p>
+                                    
+                                    <div className="space-y-3">
+                                        <div className="bg-slate-800/60 p-3 rounded-lg">
+                                            <h5 className="font-semibold text-white text-xs uppercase mb-2"><i className="fa-solid fa-clipboard-list mr-1"></i> Protocolo en caso de Siniestro</h5>
+                                            <ol className="list-decimal pl-4 space-y-1 text-xs">
+                                                <li><strong>NO MUEVAS EL VEHÍCULO</strong> a menos que obstruyas gravemente el tránsito o la PNP lo exija.</li>
+                                                <li>Llama de inmediato a la central (01 622-2233) y pide un Procurador.</li>
+                                                <li><strong>Nunca asumas responsabilidad</strong> ni negocies acuerdos económicos con el otro conductor. Deja que el procurador hable.</li>
+                                                <li>Pasa el dosaje etílico en la comisaría dentro de las primeras 4 horas (Obligatorio para que cubra el seguro).</li>
+                                            </ol>
+                                        </div>
+
+                                        <div className="bg-amber-900/20 p-3 rounded-lg border-l-2 border-amber-500">
+                                            <h5 className="font-semibold text-white text-xs uppercase mb-1"><i className="fa-solid fa-triangle-exclamation mr-1"></i> Penalidad por Imprudencia</h5>
+                                            <p className="text-xs">El deducible regular cubre choques comunes, pero si el peritaje determina que chocaste por: <strong>pasarte luz roja, señal de PARE, ir en contra o exceso de velocidad comprobado</strong>, la cobertura se penaliza y el deducible sube drásticamente al <strong>25% (Mínimo $500 USD)</strong>.</p>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                                            <div className="bg-slate-800/50 p-2 rounded border border-slate-700">
+                                                <span className="text-emerald-400 font-semibold block mb-1"><i className="fa-solid fa-truck-pickup"></i> Grúa Ilimitada</span>
+                                                Úsala para fallas mecánicas (ej. alerta de temperatura) sin pagar deducible. Exige traslado a taller oficial Revoshop.
+                                            </div>
+                                            <div className="bg-slate-800/50 p-2 rounded border border-slate-700">
+                                                <span className="text-purple-400 font-semibold block mb-1"><i className="fa-solid fa-paw"></i> Cobertura Leia</span>
+                                                Gastos médicos veterinarios cubiertos si tu mascota (Leia) resulta herida viajando contigo en la cabina.
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
+
+                            {/* SAT */}
                             <div className="flex items-start">
-                                <i className="fa-solid fa-building-columns text-xl text-amber-500 mr-3 mt-1"></i>
+                                <div className="bg-slate-800 p-2 rounded-lg mr-3 mt-1 shadow-inner"><i className="fa-solid fa-building-columns text-xl text-blue-400"></i></div>
                                 <div>
                                     <h4 className="text-white font-medium">Impuesto Vehicular (SAT)</h4>
-                                    <p>Exonerado 2026. Pagarás el 1% del valor en 4 cuotas trimestrales durante 2027, 2028 y 2029.</p>
+                                    <p className="mt-1 text-xs">DJ Vehicular registrada correctamente en Surquillo. Exonerado todo el año 2026. Los pagos anuales (1% del valor) se realizarán durante 3 años: <strong>2027, 2028 y 2029</strong> (Se pagan en 4 cuotas: Feb, May, Ago, Nov mediante tu App BCP).</p>
                                 </div>
                             </div>
                         </div>
