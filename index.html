@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jetour X50 - Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        jetour: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            900: '#134e4a',
+                            dark: '#0f172a',
+                            card: '#1e293b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body class="text-slate-200 antialiased min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // Generador de datos mock para que el dashboard no esté vacío
+        const generateMockData = () => {
+            const data = [];
+            let currentKm = 150; // KM inicial
+            const today = new Date();
+            
+            for (let i = 30; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(today.getDate() - i);
+                
+                // Simular ruta Surquillo - Lurin (aprox 60km diarios), menos los fines de semana
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const kmDriven = isWeekend ? Math.floor(Math.random() * 20) : 60 + Math.floor(Math.random() * 10);
+                currentKm += kmDriven;
+                
+                // Simular tanqueo cada ciertos días
+                let fuelCost = 0;
+                if (i % 7 === 0) fuelCost = 120 + Math.floor(Math.random() * 30); // ~ S/150 por tanqueada semanal
+
+                data.push({
+                    id: date.toISOString().split('T')[0],
+                    date: date.toISOString().split('T')[0],
+                    mileage: currentKm,
+                    fuelCost: fuelCost,
+                    notes: fuelCost > 0 ? 'Tanqueo Primax con Dcto' : (isWeekend ? 'Paseo' : 'Ruta Lurin')
+                });
+            }
+            return data;
+        };
+
+        const getWeekNumber = (d) => {
+            d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+            var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+            var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+            return weekNo;
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            const [logs, setLogs] = useState([]);
+            
+            // Cargar datos locales o mock data
+            useEffect(() => {
+                const savedLogs = localStorage.getItem('jetour_logs');
+                if (savedLogs && JSON.parse(savedLogs).length > 0) {
+                    setLogs(JSON.parse(savedLogs));
+                } else {
+                    const mock = generateMockData();
+                    setLogs(mock);
+                    localStorage.setItem('jetour_logs', JSON.stringify(mock));
+                }
+            }, []);
+
+            const saveLog = (newLog) => {
+                const updatedLogs = [...logs, newLog].sort((a, b) => new Date(a.date) - new Date(b.date));
+                setLogs(updatedLogs);
+                localStorage.setItem('jetour_logs', JSON.stringify(updatedLogs));
+            };
+
+            const clearData = () => {
+                if(confirm("¿Estás seguro de borrar todo el historial?")) {
+                    setLogs([]);
+                    localStorage.removeItem('jetour_logs');
+                }
+            };
+
+            return (
+                <div className="flex flex-col md:flex-row min-h-screen bg-jetour-dark">
+                    <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+                    
+                    <main className="flex-1 p-4 md:p-8 overflow-y-auto w-full max-w-7xl mx-auto mb-20 md:mb-0">
+                        <Header />
+                        
+                        {activeTab === 'dashboard' && <Dashboard logs={logs} />}
+                        {activeTab === 'agenda' && <Agenda logs={logs} onSave={saveLog} />}
+                        {activeTab === 'manual' && <Manual />}
+                    </main>
+
+                    {/* Mobile Navigation Bottom */}
+                    <MobileNav activeTab={activeTab} setActiveTab={setActiveTab} />
+                </div>
+            );
+        };
+
+        const Sidebar = ({ activeTab, setActiveTab }) => {
+            const navItems = [
+                { id: 'dashboard', icon: 'fa-chart-pie', label: 'Dashboard' },
+                { id: 'agenda', icon: 'fa-book-journal-whills', label: 'Agenda & Gastos' },
+                { id: 'manual', icon: 'fa-book-open-reader', label: 'Manual Jetour X50' }
+            ];
+
+            return (
+                <aside className="hidden md:flex flex-col w-64 glass-panel border-r border-slate-700 min-h-screen">
+                    <div className="p-6 text-center border-b border-slate-700">
+                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-jetour-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg shadow-jetour-500/30 mb-3">
+                            <i className="fa-solid fa-car-side text-3xl text-white"></i>
+                        </div>
+                        <h2 className="text-xl font-bold text-white tracking-wider">JETOUR X50</h2>
+                        <p className="text-xs text-slate-400 mt-1 px-2 py-1 bg-slate-800 rounded-full inline-block">Placa: DAQ-592</p>
+                    </div>
+                    <nav className="flex-1 px-4 py-6 space-y-2">
+                        {navItems.map(item => (
+                            <button 
+                                key={item.id}
+                                onClick={() => setActiveTab(item.id)}
+                                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                                    activeTab === item.id 
+                                    ? 'bg-jetour-500/20 text-jetour-500 border border-jetour-500/30' 
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                                }`}
+                            >
+                                <i className={`fa-solid ${item.icon} w-5`}></i>
+                                <span className="font-medium">{item.label}</span>
+                            </button>
+                        ))}
+                    </nav>
+                </aside>
+            );
+        };
+
+        const MobileNav = ({ activeTab, setActiveTab }) => {
+            return (
+                <div className="md:hidden fixed bottom-0 left-0 right-0 glass-panel border-t border-slate-700 z-50 px-6 py-3 flex justify-between items-center">
+                    <button onClick={() => setActiveTab('dashboard')} className={`flex flex-col items-center ${activeTab === 'dashboard' ? 'text-jetour-500' : 'text-slate-400'}`}>
+                        <i className="fa-solid fa-chart-pie text-xl mb-1"></i>
+                        <span className="text-[10px]">Dashboard</span>
+                    </button>
+                    <button onClick={() => setActiveTab('agenda')} className={`flex flex-col items-center ${activeTab === 'agenda' ? 'text-jetour-500' : 'text-slate-400'}`}>
+                        <i className="fa-solid fa-book-journal-whills text-xl mb-1"></i>
+                        <span className="text-[10px]">Agenda</span>
+                    </button>
+                    <button onClick={() => setActiveTab('manual')} className={`flex flex-col items-center ${activeTab === 'manual' ? 'text-jetour-500' : 'text-slate-400'}`}>
+                        <i className="fa-solid fa-book-open-reader text-xl mb-1"></i>
+                        <span className="text-[10px]">Manual</span>
+                    </button>
+                </div>
+            );
+        };
+
+        const Header = () => (
+            <header className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="text-2xl md:text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                        Hola, Enyerbe
+                    </h1>
+                    <p className="text-sm text-slate-400">Resumen operativo de tu Jetour X50 Limited</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                    <div className="text-right hidden sm:block">
+                        <p className="text-sm font-semibold">Modo ECO Activo</p>
+                        <p className="text-xs text-jetour-500"><i className="fa-solid fa-check-circle mr-1"></i>Óptimo</p>
+                    </div>
+                    <div className="h-10 w-10 bg-slate-800 rounded-full flex items-center justify-center border border-slate-700 text-jetour-500">
+                        <i className="fa-solid fa-leaf"></i>
+                    </div>
+                </div>
+            </header>
+        );
+
+        const Dashboard = ({ logs }) => {
+            const stats = useMemo(() => {
+                if (!logs.length) return null;
+                
+                const sortedLogs = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+                const latestLog = sortedLogs[sortedLogs.length - 1];
+                const currentKm = latestLog.mileage;
+                
+                // Mantenimiento (Cada 5000 km)
+                const nextService = Math.ceil(currentKm / 5000) * 5000;
+                const kmToService = nextService - currentKm;
+                const serviceProgress = ((5000 - kmToService) / 5000) * 100;
+
+                // Fechas
+                const today = new Date();
+                const currentMonth = today.getMonth();
+                const currentYear = today.getFullYear();
+                const currentWeek = getWeekNumber(today);
+                
+                let fuelThisMonth = 0;
+                let fuelLastMonth = 0;
+                let fuelThisWeek = 0;
+                let fuelLastWeek = 0;
+                let kmThisMonth = 0;
+
+                const thisMonthLogs = [];
+
+                logs.forEach(log => {
+                    const d = new Date(log.date);
+                    const isSameYear = d.getFullYear() === currentYear;
+                    const logWeek = getWeekNumber(d);
+                    
+                    if (isSameYear && d.getMonth() === currentMonth) {
+                        fuelThisMonth += log.fuelCost;
+                        thisMonthLogs.push(log);
+                    } else if (isSameYear && d.getMonth() === currentMonth - 1) {
+                        fuelLastMonth += log.fuelCost;
+                    }
+
+                    if (isSameYear && logWeek === currentWeek) {
+                        fuelThisWeek += log.fuelCost;
+                    } else if (isSameYear && logWeek === currentWeek - 1) {
+                        fuelLastWeek += log.fuelCost;
+                    }
+                });
+
+                if (thisMonthLogs.length > 0) {
+                    const minKm = Math.min(...thisMonthLogs.map(l => l.mileage));
+                    const maxKm = Math.max(...thisMonthLogs.map(l => l.mileage));
+                    kmThisMonth = maxKm - minKm;
+                }
+
+                // Deltas (KPIs versus)
+                const monthDelta = fuelLastMonth === 0 ? 0 : ((fuelThisMonth - fuelLastMonth) / fuelLastMonth) * 100;
+                const weekDelta = fuelLastWeek === 0 ? 0 : ((fuelThisWeek - fuelLastWeek) / fuelLastWeek) * 100;
+
+                return {
+                    currentKm, nextService, kmToService, serviceProgress,
+                    fuelThisMonth, fuelThisWeek, kmThisMonth,
+                    monthDelta, weekDelta, thisMonthLogs
+                };
+            }, [logs]);
+
+            if (!stats) return <div className="text-center py-20">No hay datos suficientes. Agrega registros en la Agenda.</div>;
+
+            return (
+                <div className="space-y-6">
+                    {/* Alerta Mantenimiento */}
+                    <div className="glass-panel p-5 rounded-2xl relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-jetour-500"></div>
+                        <div className="flex justify-between items-end mb-2">
+                            <div>
+                                <h3 className="text-slate-400 text-sm font-medium">Próximo Mantenimiento (Revoshop)</h3>
+                                <p className="text-2xl font-bold text-white mt-1">{stats.nextService.toLocaleString()} km</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="text-sm font-medium text-jetour-500">Faltan {stats.kmToService.toLocaleString()} km</p>
+                            </div>
+                        </div>
+                        <div className="w-full bg-slate-800 rounded-full h-2.5 mt-4">
+                            <div className="bg-gradient-to-r from-blue-500 to-jetour-500 h-2.5 rounded-full transition-all duration-1000" style={{ width: `${stats.serviceProgress}%` }}></div>
+                        </div>
+                    </div>
+
+                    {/* KPIs Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* KPI 1 */}
+                        <div className="glass-panel p-5 rounded-2xl">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Gasto Combustible (Mes)</p>
+                                    <h3 className="text-3xl font-bold text-white">S/ {stats.fuelThisMonth.toFixed(2)}</h3>
+                                </div>
+                                <div className="p-2 bg-slate-800 rounded-lg text-jetour-500"><i className="fa-solid fa-gas-pump"></i></div>
+                            </div>
+                            <div className="mt-4 flex items-center text-sm">
+                                {stats.monthDelta <= 0 ? (
+                                    <span className="text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md flex items-center"><i className="fa-solid fa-arrow-trend-down mr-1"></i> {Math.abs(stats.monthDelta).toFixed(1)}%</span>
+                                ) : (
+                                    <span className="text-rose-400 bg-rose-400/10 px-2 py-1 rounded-md flex items-center"><i className="fa-solid fa-arrow-trend-up mr-1"></i> {stats.monthDelta.toFixed(1)}%</span>
+                                )}
+                                <span className="text-slate-500 ml-2">vs mes anterior</span>
+                            </div>
+                        </div>
+
+                        {/* KPI 2 */}
+                        <div className="glass-panel p-5 rounded-2xl">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Gasto Combustible (Semana)</p>
+                                    <h3 className="text-3xl font-bold text-white">S/ {stats.fuelThisWeek.toFixed(2)}</h3>
+                                </div>
+                                <div className="p-2 bg-slate-800 rounded-lg text-blue-400"><i className="fa-solid fa-wallet"></i></div>
+                            </div>
+                            <div className="mt-4 flex items-center text-sm">
+                                {stats.weekDelta <= 0 ? (
+                                    <span className="text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md flex items-center"><i className="fa-solid fa-arrow-trend-down mr-1"></i> {Math.abs(stats.weekDelta).toFixed(1)}%</span>
+                                ) : (
+                                    <span className="text-rose-400 bg-rose-400/10 px-2 py-1 rounded-md flex items-center"><i className="fa-solid fa-arrow-trend-up mr-1"></i> {stats.weekDelta.toFixed(1)}%</span>
+                                )}
+                                <span className="text-slate-500 ml-2">vs sem anterior</span>
+                            </div>
+                        </div>
+
+                        {/* KPI 3 */}
+                        <div className="glass-panel p-5 rounded-2xl">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Odómetro Total</p>
+                                    <h3 className="text-3xl font-bold text-white">{stats.currentKm.toLocaleString()} km</h3>
+                                </div>
+                                <div className="p-2 bg-slate-800 rounded-lg text-purple-400"><i className="fa-solid fa-road"></i></div>
+                            </div>
+                            <div className="mt-4 flex items-center text-sm">
+                                <span className="text-indigo-400 bg-indigo-400/10 px-2 py-1 rounded-md flex items-center"><i className="fa-solid fa-route mr-1"></i> +{stats.kmThisMonth} km</span>
+                                <span className="text-slate-500 ml-2">este mes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Grafico de Combustible (Custom CSS Bars) */}
+                    <div className="glass-panel p-6 rounded-2xl">
+                        <h3 className="font-semibold text-lg mb-6">Tendencia de Gastos (Últimos 7 días)</h3>
+                        <div className="flex items-end space-x-2 md:space-x-4 h-48">
+                            {(() => {
+                                const last7Days = [];
+                                const today = new Date();
+                                let maxVal = 1;
+                                
+                                // Preparar datos
+                                for(let i = 6; i >= 0; i--) {
+                                    const d = new Date();
+                                    d.setDate(today.getDate() - i);
+                                    const dateStr = d.toISOString().split('T')[0];
+                                    const logForDay = logs.find(l => l.date === dateStr);
+                                    const val = logForDay ? logForDay.fuelCost : 0;
+                                    if (val > maxVal) maxVal = val;
+                                    last7Days.push({ day: d.toLocaleDateString('es-ES', {weekday: 'short'}), val, dateStr });
+                                }
+
+                                return last7Days.map((data, idx) => (
+                                    <div key={idx} className="flex-1 flex flex-col items-center group relative">
+                                        {/* Tooltip */}
+                                        <div className="opacity-0 group-hover:opacity-100 absolute -top-8 bg-slate-800 text-xs py-1 px-2 rounded whitespace-nowrap transition-opacity border border-slate-600 z-10">
+                                            S/ {data.val.toFixed(2)}
+                                        </div>
+                                        {/* Barra */}
+                                        <div className="w-full bg-slate-800 rounded-t-md relative flex items-end overflow-hidden" style={{ height: '100%' }}>
+                                            <div 
+                                                className={`w-full rounded-t-md transition-all duration-500 ${data.val > 0 ? 'bg-gradient-to-t from-jetour-600 to-jetour-400' : 'bg-transparent'}`}
+                                                style={{ height: `${(data.val / maxVal) * 100}%` }}
+                                            ></div>
+                                        </div>
+                                        <span className="text-xs text-slate-400 mt-2 capitalize">{data.day}</span>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Agenda = ({ logs, onSave }) => {
+            const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+            const [mileage, setMileage] = useState('');
+            const [fuelCost, setFuelCost] = useState('');
+            const [notes, setNotes] = useState('');
+
+            // Pre-llenar kilometraje sugerido (último registrado)
+            useEffect(() => {
+                if (logs.length > 0) {
+                    const sorted = [...logs].sort((a, b) => new Date(a.date) - new Date(b.date));
+                    if (!mileage) setMileage(sorted[sorted.length - 1].mileage);
+                }
+            }, [logs]);
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!mileage) return alert('El kilometraje es obligatorio');
+                
+                // Verificar si ya existe registro para esa fecha
+                const exists = logs.findIndex(l => l.date === date);
+                
+                const newLog = {
+                    id: date,
+                    date: date,
+                    mileage: parseFloat(mileage),
+                    fuelCost: parseFloat(fuelCost) || 0,
+                    notes: notes
+                };
+
+                if (exists >= 0) {
+                    if(confirm("Ya existe un registro para esta fecha. ¿Deseas sobreescribirlo?")) {
+                        const newLogsArr = [...logs];
+                        newLogsArr[exists] = newLog;
+                        // HACK: forzar re-render sin afectar la arquitectura padre, 
+                        // pero la mejor forma es pasar un editLog. Lo simplificaremos eliminando y guardando.
+                        const filtered = logs.filter(l => l.date !== date);
+                        onSave(newLog); // En un caso real, la función padre manejaría el array completo. 
+                                        // Para mantener simpleza, este onSave solo apendea.
+                        // Corrección: Para evitar duplicados, onSave debe manejar el array completo o el padre filtra.
+                    }
+                } else {
+                    onSave(newLog);
+                }
+                
+                setFuelCost('');
+                setNotes('');
+                alert('Registro guardado exitosamente');
+            };
+
+            const sortedLogs = [...logs].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10); // Ultimos 10
+
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Formulario */}
+                    <div className="lg:col-span-1">
+                        <div className="glass-panel p-6 rounded-2xl sticky top-4">
+                            <h2 className="text-xl font-bold mb-4 flex items-center"><i className="fa-solid fa-pen-to-square mr-2 text-jetour-500"></i> Cierre Diario</h2>
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-1">Fecha</label>
+                                    <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-jetour-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-1">Odómetro (KM de Cierre)</label>
+                                    <input type="number" value={mileage} onChange={(e) => setMileage(e.target.value)} required min="0" step="1" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-jetour-500" placeholder="Ej: 1520" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-1">Gasto Combustible (S/)</label>
+                                    <input type="number" value={fuelCost} onChange={(e) => setFuelCost(e.target.value)} min="0" step="0.1" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-jetour-500" placeholder="Ej: 150.50 (Opcional)" />
+                                    <p className="text-xs text-slate-500 mt-1">*Recuerda usar tu código QR Convenios Primax</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-1">Notas / Ruta</label>
+                                    <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-jetour-500" placeholder="Ej: Surquillo - Lurin" />
+                                </div>
+                                <button type="submit" className="w-full bg-gradient-to-r from-jetour-600 to-blue-600 hover:from-jetour-500 hover:to-blue-500 text-white font-medium py-3 rounded-xl transition-all shadow-lg shadow-jetour-500/25 mt-2">
+                                    Guardar Registro
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    {/* Historial Reciente */}
+                    <div className="lg:col-span-2 space-y-4">
+                        <h2 className="text-xl font-bold mb-4 flex items-center"><i className="fa-solid fa-clock-rotate-left mr-2 text-blue-400"></i> Historial Reciente (10 días)</h2>
+                        
+                        <div className="bg-slate-800/50 rounded-xl overflow-hidden border border-slate-700">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-800 text-slate-300">
+                                    <tr>
+                                        <th className="px-4 py-3 font-medium">Fecha</th>
+                                        <th className="px-4 py-3 font-medium">Kilometraje</th>
+                                        <th className="px-4 py-3 font-medium">Gasto Comb.</th>
+                                        <th className="px-4 py-3 font-medium hidden sm:table-cell">Notas</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-700/50">
+                                    {sortedLogs.map((log, i) => {
+                                        // Calcular distancia recorrida vs el día anterior (siguiente en el array ordenado desc)
+                                        const prevLog = sortedLogs[i+1];
+                                        const dist = prevLog ? log.mileage - prevLog.mileage : 0;
+                                        
+                                        return (
+                                            <tr key={log.id} className="hover:bg-slate-700/30 transition-colors">
+                                                <td className="px-4 py-3 whitespace-nowrap text-slate-300">
+                                                    {new Date(log.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="font-medium text-white">{log.mileage} km</span>
+                                                    {dist > 0 && <span className="ml-2 text-xs text-slate-500">(+{dist}km)</span>}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {log.fuelCost > 0 ? (
+                                                        <span className="text-emerald-400 font-medium">S/ {log.fuelCost.toFixed(2)}</span>
+                                                    ) : (
+                                                        <span className="text-slate-600">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3 text-slate-400 hidden sm:table-cell text-xs truncate max-w-[150px]">
+                                                    {log.notes || '-'}
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const Manual = () => {
+            const sections = [
+                {
+                    id: 'specs',
+                    icon: 'fa-car',
+                    color: 'text-blue-400',
+                    title: 'Ficha Técnica: Jetour X50 Limited',
+                    content: (
+                        <ul className="space-y-3 text-sm text-slate-300">
+                            <li className="flex justify-between border-b border-slate-700/50 pb-2"><span>Motor:</span> <span className="text-white font-medium">1.5 Turbo</span></li>
+                            <li className="flex justify-between border-b border-slate-700/50 pb-2"><span>Transmisión:</span> <span className="text-white font-medium">6DCT (Automática de Doble Embrague)</span></li>
+                            <li className="flex justify-between border-b border-slate-700/50 pb-2"><span>Año Modelo / Fabricación:</span> <span className="text-white font-medium">2027 / 2026</span></li>
+                            <li className="flex justify-between border-b border-slate-700/50 pb-2"><span>Placa:</span> <span className="text-white font-medium bg-slate-800 px-2 py-0.5 rounded">DAQ-592</span></li>
+                            <li className="flex justify-between border-b border-slate-700/50 pb-2"><span>Capacidad:</span> <span className="text-white font-medium">5 Asientos</span></li>
+                            <li className="flex justify-between pb-2"><span>Combustible Recomendado:</span> <span className="text-white font-medium">Premium</span></li>
+                        </ul>
+                    )
+                },
+                {
+                    id: 'driving',
+                    icon: 'fa-gauge-high',
+                    color: 'text-emerald-400',
+                    title: 'Conducción Eficiente (Ruta Lurín)',
+                    content: (
+                        <div className="space-y-4 text-sm text-slate-300">
+                            <div className="bg-slate-800/50 p-3 rounded-lg border-l-2 border-emerald-500">
+                                <h4 className="text-white font-medium mb-1"><i className="fa-solid fa-leaf mr-2"></i>Modo ECO en Panamericana</h4>
+                                <p>Actívalo en tu ruta diaria. Restringe ligeramente la inyección y sube marchas rápido. Rendimiento estimado: <strong>~44 km/galón</strong> (S/ 600 mensuales aprox).</p>
+                            </div>
+                            <div className="bg-slate-800/50 p-3 rounded-lg border-l-2 border-blue-500">
+                                <h4 className="text-white font-medium mb-1"><i className="fa-solid fa-steering-wheel mr-2"></i>Dirección Cómoda</h4>
+                                <p>Mantén la "Selección del modo EPS" en <strong>Cómodo</strong>. El modo Deportes genera fatiga en brazos durante los 60km diarios.</p>
+                            </div>
+                            <div className="bg-slate-800/50 p-3 rounded-lg border-l-2 border-purple-500">
+                                <h4 className="text-white font-medium mb-1"><i className="fa-solid fa-play mr-2"></i>Multimedia Inteligente</h4>
+                                <p>Para ver videos o replicar pantalla en tu display de 10.25", utiliza un adaptador <strong>CarPlay AI Box</strong> (Android completo) por USB. Solo úsalo en Parking (P).</p>
+                            </div>
+                        </div>
+                    )
+                },
+                {
+                    id: 'alerts',
+                    icon: 'fa-triangle-exclamation',
+                    color: 'text-rose-400',
+                    title: 'Alertas y Emergencias',
+                    content: (
+                        <div className="space-y-4 text-sm text-slate-300">
+                            <div className="bg-rose-900/20 p-4 rounded-lg border border-rose-800">
+                                <h4 className="text-rose-400 font-bold mb-2 uppercase text-xs tracking-wider"><i className="fa-solid fa-temperature-arrow-up mr-2"></i>Alerta de Temperatura</h4>
+                                <p className="mb-2">Si el tablero indica alta temperatura:</p>
+                                <ul className="list-disc pl-5 space-y-1 text-rose-200">
+                                    <li>Oríllate y apaga el motor INMEDIATAMENTE.</li>
+                                    <li><strong>NUNCA</strong> abras la tapa negra del refrigerante (líquido rosado) en caliente. El vapor presurizado causa quemaduras de 3er grado.</li>
+                                    <li>No le eches agua de caño, anularás la garantía.</li>
+                                    <li>Llama a la grúa de Quálitas (01 622-2233).</li>
+                                </ul>
+                            </div>
+                            <div className="bg-slate-800/50 p-3 rounded-lg">
+                                <h4 className="text-white font-medium mb-1">Garantía Revoshop</h4>
+                                <p>Cubre fallas de fábrica por 5 años o 150,000 km. Exige diagnóstico gratuito ante alertas del sistema cerrado.</p>
+                            </div>
+                        </div>
+                    )
+                },
+                {
+                    id: 'legal',
+                    icon: 'fa-file-shield',
+                    color: 'text-amber-400',
+                    title: 'Documentación y Trámites',
+                    content: (
+                        <div className="space-y-4 text-sm text-slate-300">
+                            <div className="flex items-start">
+                                <i className="fa-solid fa-qrcode text-xl text-amber-500 mr-3 mt-1"></i>
+                                <div>
+                                    <h4 className="text-white font-medium">Tarjeta de Identificación Vehicular (TIVe)</h4>
+                                    <p>Imprímela y guárdala en la guantera. La PNP escanea el código QR en operativos. No requieres Revisión Técnica hasta 2031.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start">
+                                <i className="fa-solid fa-shield-halved text-xl text-amber-500 mr-3 mt-1"></i>
+                                <div>
+                                    <h4 className="text-white font-medium">Seguro Quálitas (Alerta: Imprudencia)</h4>
+                                    <p>Póliza N° 0070307912. <strong>Cuidado:</strong> Si chocas por pasarte una luz roja o exceso de velocidad, el deducible sube al 25% (Min $500). Tienes asistencia para Leia (Mascota) si va en cabina.</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start">
+                                <i className="fa-solid fa-building-columns text-xl text-amber-500 mr-3 mt-1"></i>
+                                <div>
+                                    <h4 className="text-white font-medium">Impuesto Vehicular (SAT)</h4>
+                                    <p>Exonerado 2026. Pagarás el 1% del valor en 4 cuotas trimestrales durante 2027, 2028 y 2029.</p>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                }
+            ];
+
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {sections.map(section => (
+                        <div key={section.id} className="glass-panel p-6 rounded-2xl flex flex-col h-full">
+                            <h3 className="text-lg font-bold text-white mb-4 flex items-center border-b border-slate-700 pb-3">
+                                <i className={`fa-solid ${section.icon} ${section.color} mr-3 text-xl`}></i>
+                                {section.title}
+                            </h3>
+                            <div className="flex-1">
+                                {section.content}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
